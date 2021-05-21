@@ -1,0 +1,17 @@
+import RPi.GPIO as GPIO
+import time
+
+while True:
+    #Initialsing
+    GPIO.setmode(GPIO.BCM)
+    DEBUG = 1
+    
+    PIN2 = 17
+    GPIO.setup(PIN2, GPIO.OUT)
+    GPIO.output(PIN2, True)
+    if (KeyboardInterrupt==True):
+        GPIO.output(PIN2, False)
+
+
+GPIO.cleanup()
+print("Finished")
