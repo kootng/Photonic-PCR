@@ -22,17 +22,18 @@ import time
 import datetime
 import tkinter as tk
 import sqlite3
-
+import adafruit_mcp3xxx.mcp3008 as MCP
+from adafruit_mcp3xxx.analog_in import AnalogIn
 
 
 # -------------------------------------------------------------------------
-def PCRcycle(tHS, Ths, tDE, Tde, tAN, Tan, tEX, Tex, Nc):
+def PCRcycle(tHS, Ths, tDE, Tde, tAN, Tan, tEX, Tex, Nc, Cond):
     
     #Initialsing
     GPIO.setmode(GPIO.BCM)
     DEBUG = 1
     
-    spi = busio.SPI(board.SCK, board.MOSI, board.MISO)
+    spi = busio.SPI(board.SCK, board.MOSI, board.MISO) # SCK: 11, MOSI: 10, MISO: 9
     cs = digitalio.DigitalInOut(board.D5)
     cs.direction = digitalio.Direction.OUTPUT
     thermocouple = MAX31856(spi, cs)
@@ -61,7 +62,7 @@ def PCRcycle(tHS, Ths, tDE, Tde, tAN, Tan, tEX, Tex, Nc):
     # Creating text file
     filename_ext = "Text/" + dataname +'.txt'     # Creating file name with ending
     file = open(filename_ext,'w')               # Creating file
-    file.write('Time [s] \t setTemp \t Temperature \t PWM \t \n')
+    file.write('Time [s] \t setTemp \t Temperature \t PWM \t \n' + Cond + '\n')
     file.close()
     
     # Defining parameters
@@ -91,8 +92,8 @@ def PCRcycle(tHS, Ths, tDE, Tde, tAN, Tan, tEX, Tex, Nc):
     uPID = 0
     
     # Defining pin connections
-    PINPWM = 17     # Pin for PWM
-    PINFAN = 27     # Pin for active cooling with fan
+    PINPWM = 27     # Pin for PWM
+    PINFAN = 17     # Pin for active cooling with fan
 
     
     # Setup SPI interface pins
@@ -197,7 +198,7 @@ def PCRcycle(tHS, Ths, tDE, Tde, tAN, Tan, tEX, Tex, Nc):
         file.write(strTotTime + '\t\t  ' + strsetT + '\t\t' + strTemperature + '\t\t' + strdcycle_PWM + '\n')
         file.close()
         
-        print("Time: ", TotTime, "Temperature: ", Temperature)
+        print("Time: ", TotTime, "Temperature: ", Temperature, "PWM: ", dcycle_PWM)
         
         # Updating timers and moving to next step / cycle if required
         dt = t2 - t1
@@ -249,7 +250,24 @@ def PIDcontrol(Temperature, setT, Waitt, Kp, Ki, Kd, i0, e0):
     return(uPID, e, I) 
     
 # ------------------------------------------------------------------------
-
+def FluMeasurement():
+    # Parameters
+    Vref = 0.55
+    R1 = 1000
+    t = 0
+    delay = 0.1
+    # SPI configuration
+    spi = busio.SPI(clock=board.D21, MISO=board.D19, MOSI=board.D20)
+    #spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
+    cs = digitalio.DigitalInOut(board.D12)
+    mcp = MCP.MCP3008(spi, cs)                    
+    
+    # AnalogToDigitalConversion
+    chan0 = AnalogIn(mcp, MCP.P0)
+    Abs = chan0.value
+    
+    return(Abs)
+# ------------------------------------------------------------------------
 # Extracting values from database
 conn2 = sqlite3.connect('PhotonicPCRDB.db')    # Connecting to database
 c2 = conn2.cursor()                           # Creating cursor for acces
@@ -330,10 +348,13 @@ e8.grid(row=7, column=3)
 tk.Label(root,text="Number of cycles").grid(row=8)
 e9.grid(row=8, column=1)
 
+tk.Label(root,text="Condition").grid(row=10, column=2)
+e10.grid(row=10, column=3)
+
 tk.Label(root, text="  ").grid(row=9)
 
 # Start Button
-button = tk.Button(root, text='Start', width=15, bg='green', command = lambda: PCRcycle(int(e1.get()),int(e2.get()),int(e3.get()),int(e4.get()),int(e5.get()),int(e6.get()),int(e7.get()),int(e8.get()),int(e9.get())))
+button = tk.Button(root, text='Start', width=15, bg='green', command = lambda: PCRcycle(int(e1.get()),int(e2.get()),int(e3.get()),int(e4.get()),int(e5.get()),int(e6.get()),int(e7.get()),int(e8.get()),int(e9.get()), str(e10.get())))
 button.grid(row=10, column=1)
 
 tk.Label(root, text="  ").grid(row=11)
